@@ -1,8 +1,26 @@
 import websocket from "@fastify/websocket";
 import cors from "@fastify/cors";
-import { fastify } from "fastify";
+import { fastify, type FastifyReply, type FastifyRequest } from "fastify";
+import type { FastifyRequestType } from "fastify/types/type-provider";
+import { z, ZodSchema } from "zod";
 
 export const server = fastify();
+
+function useSchema<T extends ZodSchema>(
+  schema: T,
+  handler: (
+    req: FastifyRequestType<unknown, unknown, unknown, z.infer<T>>,
+    res: FastifyReply,
+  ) => void,
+) {
+  return async (req: FastifyRequest, res: FastifyReply) => {
+    const result = schema.safeParse(req.body);
+    if (result.error) {
+      return res.code(400).send(result.error);
+    }
+    return handler(req, res);
+  };
+}
 
 await server.register(cors, {
   origin: "*",
