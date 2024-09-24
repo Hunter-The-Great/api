@@ -3,7 +3,6 @@ import cors from "@fastify/cors";
 import { fastify, type FastifyReply, type FastifyRequest } from "fastify";
 import type { FastifyRequestType } from "fastify/types/type-provider";
 import { z, ZodSchema } from "zod";
-import { load } from "./utilities/load";
 
 export const server = fastify();
 
@@ -42,5 +41,3 @@ try {
   server.log.error(err);
   process.exit(1);
 }
-
-load();
