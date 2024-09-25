@@ -2,7 +2,7 @@ import websocket from "@fastify/websocket";
 import cors from "@fastify/cors";
 import { fastify, type FastifyReply, type FastifyRequest } from "fastify";
 import type { FastifyRequestType } from "fastify/types/type-provider";
-import { z, ZodSchema } from "zod";
+import { z, ZodError, ZodSchema } from "zod";
 import { prisma } from "../utilities/db";
 
 export const server = fastify();
@@ -16,6 +16,21 @@ class VisibleError extends Error {
   }
 }
 
+server.setErrorHandler((err: Error, req, res) => {
+  if (err instanceof ZodError) {
+    return res.code(400).send({
+      error: "Bad Request",
+    });
+  } else if (err instanceof VisibleError) {
+    const code = err.code;
+    return res.code(code).send({
+      error: err.message,
+    });
+  }
+  console.error(err);
+  res.code(500).send({ error: "Internal Server Error" });
+});
+
 function useSchema<T extends ZodSchema>(
   schema: T,
   handler: (
@@ -24,10 +39,7 @@ function useSchema<T extends ZodSchema>(
   ) => void,
 ) {
   return async (req: FastifyRequest, res: FastifyReply) => {
-    const result = schema.safeParse(req.body);
-    if (result.error) {
-      return res.code(400).send(result.error);
-    }
+    schema.parse(req.body);
     return handler(req, res);
   };
 }
