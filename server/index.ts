@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import { fastify, type FastifyReply, type FastifyRequest } from "fastify";
 import type { FastifyRequestType } from "fastify/types/type-provider";
 import { z, ZodSchema } from "zod";
+import { prisma } from "../utilities/db";
 
 export const server = fastify();
 
@@ -54,11 +55,30 @@ const start = async () => {
             }
           })
           .join("");
-        messages.push({ shift: { pos: i, neg: 26 - i }, result });
+        messages.push({
+          shift: { pos: i, neg: i === 0 ? 0 : 26 - i },
+          result,
+        });
       }
       return res.code(200).send(messages);
     }),
   );
+
+  // TODO: give this parameters like the original API?
+  server.get("/bored", async (req, res) => {
+    // get random entry from the database
+    const numActivities = await prisma.activity.count();
+    if (numActivities <= 0) {
+      return res.code(500).send({ message: "failed to load activities" });
+    }
+    const skip = Math.floor(Math.random() * numActivities);
+
+    const activity = await prisma.activity.findMany({
+      take: 1,
+      skip,
+    });
+    return res.code(200).send(activity);
+  });
 
   try {
     server.listen({ host: "0.0.0.0", port: parseInt(process.env.PORT!) });
