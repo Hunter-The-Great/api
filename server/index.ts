@@ -7,6 +7,15 @@ import { prisma } from "../utilities/db";
 
 export const server = fastify();
 
+class VisibleError extends Error {
+  code: number;
+  constructor(message: string, code?: number) {
+    super(message);
+    this.name = "VisibleError";
+    this.code = code ?? 500;
+  }
+}
+
 function useSchema<T extends ZodSchema>(
   schema: T,
   handler: (
@@ -64,19 +73,21 @@ const start = async () => {
     }),
   );
 
-  // TODO: give this parameters like the original API?
+  // TODO: give this parameters like the original API
   server.get("/bored", async (req, res) => {
     // get random entry from the database
     const numActivities = await prisma.activity.count();
     if (numActivities <= 0) {
-      return res.code(500).send({ message: "failed to load activities" });
+      throw new VisibleError("Failed to load activities");
     }
     const skip = Math.floor(Math.random() * numActivities);
 
-    const activity = await prisma.activity.findMany({
-      take: 1,
-      skip,
-    });
+    const activity = (
+      await prisma.activity.findMany({
+        take: 1,
+        skip,
+      })
+    )[0];
     return res.code(200).send(activity);
   });
 
