@@ -4,6 +4,8 @@ import { fastify, type FastifyReply, type FastifyRequest } from "fastify";
 import type { FastifyRequestType } from "fastify/types/type-provider";
 import { z, ZodError, ZodSchema } from "zod";
 import { prisma } from "../utilities/db";
+import { posthog } from "../utilities/posthog";
+import { sentry } from "../utilities/sentry";
 
 export const server = fastify();
 
@@ -43,6 +45,24 @@ function useSchema<T extends ZodSchema>(
     return handler(req, res);
   };
 }
+
+function logAPI(endpoint: String, body?: Object, parameters?: Object) {
+  try {
+    posthog.capture({
+      event: "api-call",
+      distinctId: "api",
+      properties: {
+        endpoint,
+        body,
+        parameters,
+      },
+    });
+  } catch (err) {
+    console.error("Posthog Error:\n", err);
+    sentry.captureException(err);
+  }
+}
+
 const start = async () => {
   await server.register(cors, {
     origin: "*",
@@ -60,8 +80,11 @@ const start = async () => {
   server.post(
     "/ceasar",
     useSchema(ceasarSchema, async (req, res) => {
+      logAPI("/ceasar", req.body);
+
       const { message } = req.body;
       const messages = [];
+
       for (let i = 0; i < 26; i++) {
         const result = message
           .split("")
@@ -87,7 +110,8 @@ const start = async () => {
 
   // TODO: give this parameters like the original API
   server.get("/bored", async (req, res) => {
-    // get random entry from the database
+    logAPI("/bored");
+
     const numActivities = await prisma.activity.count();
     if (numActivities <= 0) {
       throw new VisibleError("Failed to load activities");
