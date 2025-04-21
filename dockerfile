@@ -6,6 +6,7 @@ WORKDIR /bot
 COPY package.json .
 COPY bun.lockb .
 RUN bun install
+RUN apt-get update -y && apt-get install -y openssl
 
 COPY . .
 
